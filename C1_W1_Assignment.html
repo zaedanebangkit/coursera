@@ -1,0 +1,72 @@
+<html>
+<head></head>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script lang="js">
+        
+        async function run(){
+            const trainingUrl = '/data/wdbc-train.csv';
+            
+            // Load the training data
+            const trainingData = tf.data.csv(trainingUrl, {
+                columnConfigs: {
+                    diagnosis: {
+                        isLabel: true
+                    }
+                }
+            });
+            
+            // Convert the training data to arrays
+            const convertedTrainingData = trainingData.map(({ xs, ys }) => {
+                return { xs: Object.values(xs), ys: Object.values(ys) };
+            }).batch(10);
+                  
+            const testingUrl = '/data/wdbc-test.csv';
+            
+            // Load the testing data
+            const testingData = tf.data.csv(testingUrl, {
+                columnConfigs: {
+                    diagnosis: {
+                        isLabel: true
+                    }
+                }
+            });
+            
+            // Convert the testing data to arrays
+            const convertedTestingData = testingData.map(({ xs, ys }) => {
+                return { xs: Object.values(xs), ys: Object.values(ys) };
+            }).batch(10);
+
+            // Determine the number of features
+            const numOfFeatures = (await trainingData.columnNames()).length - 1;
+            
+            // Create the neural network model
+            const model = tf.sequential();
+            model.add(tf.layers.dense({ inputShape: [numOfFeatures], units: 16, activation: 'relu' }));
+            model.add(tf.layers.dense({ units: 8, activation: 'relu' }));
+            model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+            
+            // Compile the model
+            model.compile({
+                optimizer: tf.train.rmsprop(),
+                loss: 'binaryCrossentropy',
+                metrics: ['accuracy']
+            });
+            
+            // Train the model
+            await model.fitDataset(convertedTrainingData, 
+                             {epochs: 100,
+                              validationData: convertedTestingData,
+                              callbacks: {
+                                  onEpochEnd: async (epoch, logs) => {
+                                      console.log("Epoch: " + epoch + " Loss: " + logs.loss + " Accuracy: " + logs.acc);
+                                  }
+                              }});
+            // Save the model
+            await model.save('downloads://my_model');
+        }
+
+        run();
+    </script>
+<body>
+</body>
+</html>
